@@ -1,13 +1,18 @@
 const fs = require("fs");
 const { exit } = require("process");
-const lines = parseInput("./example.txt");
+const lines = parseInput("./input.txt");
+
+const TOTAL_MINUTES = 30;
+
 let nodeMap = [];
 let current_node = null;
 let openNodes = [];
 let nodeCount = 0;
 let max_rate = 0;
 let openDuringAlgo = [];
+let cnt = 0;
 
+var startTime = performance.now();
 for (line of lines) {
   nodeCount++;
   let matches = line.match(
@@ -27,7 +32,7 @@ for (line of lines) {
 
 let max = 0;
 
-visitNode("AA", 1, false, 0, 0, openNodes, "", [], null);
+visitNode("AA", 0, false, 0, 0, openNodes, "", [], []);
 
 function visitNode(
   label,
@@ -40,16 +45,13 @@ function visitNode(
   openDuringAlgo,
   prevLabel
 ) {
+  stepsLeft = stepsLeft + 1;
+  //here we sill tick clock
   note += `moved to ${label}, rate is ${releasingRate}, minutes ${stepsLeft}, want to open ${openNode}, prev label ${prevLabel}\n`;
-
-  if (prevLabel && prevLabel == label) {
-    console.log("indetical lables");
-    process.exit();
-  }
 
   if (openNodes.length == nodeCount) {
     //all nodes are open
-    released += releasingRate * (30 - stepsLeft);
+    released += releasingRate * (TOTAL_MINUTES - stepsLeft);
     if (released > max) {
       console.log("max reached all open", released, openDuringAlgo, stepsLeft);
       max = released;
@@ -57,26 +59,19 @@ function visitNode(
     return;
   }
 
-  if (stepsLeft > 30) {
+  if (stepsLeft > TOTAL_MINUTES) {
     if (released > max) {
       max = released;
-      console.log(
-        "max reached max steps",
-        released,
-        releasingRate,
-        openDuringAlgo,
-        note
-      );
     }
     return;
   }
 
-  if (max > released + (30 - stepsLeft) * max_rate) {
+  if (max > released + (TOTAL_MINUTES - stepsLeft + 1) * max_rate) {
     return;
   }
 
   if (openNode && openNodes.indexOf(label) < 0) {
-    stepsLeft += 1;
+    stepsLeft = stepsLeft + 1;
     note += `open ${label} on minute ${stepsLeft}\n`;
     released += releasingRate;
     releasingRate += nodeMap[label].rate;
@@ -84,7 +79,7 @@ function visitNode(
     openNodes.push(label);
   }
 
-  if (stepsLeft > 30) {
+  if (stepsLeft > TOTAL_MINUTES) {
     if (released > max) {
       max = released;
     }
@@ -93,36 +88,48 @@ function visitNode(
   //check what paths are available
   paths = nodeMap[label].leadsToText;
 
-  //   console.log("current label and paths", current_node, paths);
   for (let path of paths) {
+    //if we didn't open current node and about to jump to the node that just visited - we waisted a step,
+    //no need to continue this route
+    if (!openNode && path == prevLabel[prevLabel.length - 1]) {
+      //   console.log(
+      //     `waisted step, current ${label}, next ${path}, visited ${prevLabel}`
+      //   );
+      cnt++;
+      //   console.log(cnt);
+      continue;
+    }
+
     //path wasn't opened yet
     if (openNodes.indexOf(path) < 0) {
       visitNode(
         path,
-        stepsLeft + 1,
+        stepsLeft,
         true,
         released + releasingRate,
         releasingRate,
         [...openNodes],
         note,
         [...openDuringAlgo],
-        label
+        [...prevLabel, label]
       );
     }
     visitNode(
       path,
-      stepsLeft + 1,
+      stepsLeft,
       false,
       released + releasingRate,
       releasingRate,
       [...openNodes],
       note,
       [...openDuringAlgo],
-      label
+      [...prevLabel, label]
     );
   }
 }
+var endTime = performance.now();
 
+console.log(`Time: ${(endTime - startTime) / 1000} seconds`);
 console.log(max);
 
 function Node(label, leadsTo, rate) {
