@@ -1,9 +1,6 @@
 const fs = require("fs");
 const { exit } = require("process");
 const lines = parseInput("./input.txt");
-
-const TOTAL_MINUTES = 30;
-
 let nodeMap = [];
 let current_node = null;
 let openNodes = [];
@@ -11,6 +8,7 @@ let nodeCount = 0;
 let max_rate = 0;
 let openDuringAlgo = [];
 let cnt = 0;
+const TOTAL_MINUTES = 30;
 
 var startTime = performance.now();
 for (line of lines) {
@@ -51,7 +49,7 @@ function visitNode(
 
   if (openNodes.length == nodeCount) {
     //all nodes are open
-    released += releasingRate * (TOTAL_MINUTES - stepsLeft);
+    released += releasingRate * (TOTAL_MINUTES + 1 - stepsLeft);
     if (released > max) {
       console.log("max reached all open", released, openDuringAlgo, stepsLeft);
       max = released;
@@ -59,14 +57,21 @@ function visitNode(
     return;
   }
 
-  if (stepsLeft > TOTAL_MINUTES) {
+  if (stepsLeft > TOTAL_MINUTES + 1) {
     if (released > max) {
       max = released;
+      console.log(
+        "max reached max steps",
+        released,
+        releasingRate,
+        openDuringAlgo,
+        note
+      );
     }
     return;
   }
 
-  if (max > released + (TOTAL_MINUTES - stepsLeft + 1) * max_rate) {
+  if (max > released + (TOTAL_MINUTES + 1 - stepsLeft) * max_rate) {
     return;
   }
 
@@ -79,7 +84,7 @@ function visitNode(
     openNodes.push(label);
   }
 
-  if (stepsLeft > TOTAL_MINUTES) {
+  if (stepsLeft >= TOTAL_MINUTES + 1) {
     if (released > max) {
       max = released;
     }
