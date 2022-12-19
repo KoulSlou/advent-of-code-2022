@@ -1,9 +1,11 @@
 const { countReset } = require("console");
 const fs = require("fs");
-const jets = parseInput("./example.txt");
+const jets = parseInput("./input.txt");
 
 const VERTICAL_OFFSET = 3;
 const LEFT_OFFSET = 2;
+
+const RUNS = 1000000000000;
 
 let currentJetIndex = 0;
 let currentFigureIndex = 0;
@@ -77,8 +79,7 @@ while (true) {
       }
     }
     count++;
-
-    if (count == 98) {
+    if (count == RUNS) {
       break;
     }
     //init next figure
@@ -103,24 +104,112 @@ console.log("count increase per loop", countIncreasePerLoop);
 console.log("height increase per loop", heightIncreasePerLoop);
 console.log("loop start state", loopStartState);
 
-let taskCount = 1000000000000;
-let numberOfLoops = Math.round(
-  (taskCount - loopStartCount) / countIncreasePerLoop
-);
+let numberOfLoops = Math.floor((RUNS - loopStartCount) / countIncreasePerLoop);
 let potentialHeight = numberOfLoops * heightIncreasePerLoop;
-console.log("potential height", potentialHeight);
+let result = potentialHeight + loopStartHeight;
+let leftCountsToRun =
+  RUNS - loopStartCount - countIncreasePerLoop * numberOfLoops;
 
-if (taskCount - loopStartCount - 35 * numberOfLoops !== 0) {
+if (leftCountsToRun !== 0) {
   //we need to continue simulation, because loop wasn't fully completed
   let surfacesState = loopStartState.split("-");
   let mapState = surfacesState.slice(0, 7);
   let jetIndex = parseInt(surfacesState[7].slice(1));
   let figureIndex = parseInt(surfacesState[8].slice(1));
+  //reset height to the max point of the row
+  let surfaceHighestPoint = Math.max(...mapState);
+  currentHighestPoint = surfaceHighestPoint;
 
-  const map = [];
+  const mapAfterLoops = [];
   for (let i = 0; i < 7; i++) {
-    map[i] = [];
-    map[i][mapState[i]] = "#";
+    mapAfterLoops[i] = [];
+    mapAfterLoops[i][mapState[i]] = "#";
+  }
+  count = 0;
+  runSimulation(mapAfterLoops, figureIndex + 1, jetIndex + 1, leftCountsToRun);
+  drawMap(mapAfterLoops, figure);
+  result += currentHighestPoint - surfaceHighestPoint;
+}
+console.log(result);
+
+function runSimulation(
+  map,
+  figureIndexToStart,
+  jetIndexToStart,
+  countToRun,
+  detectLoops = false
+) {
+  //initialize first figure
+  let figure = initializeFigure(figures[figureIndexToStart]);
+  console.log(figure);
+  console.log(count);
+  console.log(countToRun);
+
+  while (true) {
+    let currentJetPattern = jets[jetIndexToStart];
+
+    //gas pushes figure
+    if (currentJetPattern === ">") {
+      moveFigureRight(map, figure);
+    } else if (currentJetPattern === "<") {
+      moveFigureLeft(map, figure);
+    } else {
+      console.log("unexpected condition", currentJetPattern);
+      process.exit();
+    }
+
+    let can_move_down = moveFigureDown(map, figure);
+    if (!can_move_down) {
+      let figureHighestPoint = leaveFigureAtCurrentPosition(map, figure);
+      if (figureHighestPoint > currentHighestPoint) {
+        currentHighestPoint = figureHighestPoint;
+        if (detectLoops) {
+          let state = getSurfaceRepresentation(map);
+          if (possibleStates[state] === undefined) {
+            possibleStates[state] = 1;
+          } else {
+            possibleStates[state]++;
+          }
+
+          //save to state-jet-figure map
+          let key = state + "-J" + jetIndexToStart + "-F" + figureIndexToStart;
+          if (stateJetFigureMap[key] == undefined) {
+            stateJetFigureMap[key] = 1;
+          } else {
+            //in this case we saw repeating patern
+            stateJetFigureMap[key]++;
+            if (stateJetFigureMap[key] == 2) {
+              //start analysing loop
+              if (!loopStartCount) {
+                loopStartCount = count;
+                loopStartHeight = currentHighestPoint;
+                loopStartState = key;
+              }
+            } else if (stateJetFigureMap[key] == 3) {
+              //we did a full loop
+              countIncreasePerLoop = count - loopStartCount;
+              heightIncreasePerLoop = currentHighestPoint - loopStartHeight;
+              break;
+            }
+          }
+        }
+      }
+      count++;
+
+      if (count == countToRun) {
+        console.log("count break", count, countToRun);
+        break;
+      }
+      //init next figure
+      figureIndexToStart = (figureIndexToStart + 1) % 5;
+      figure = initializeFigure(figures[figureIndexToStart]);
+    }
+
+    if (jetIndexToStart < jets.length - 1) {
+      jetIndexToStart++;
+    } else {
+      jetIndexToStart = 0;
+    }
   }
 }
 
