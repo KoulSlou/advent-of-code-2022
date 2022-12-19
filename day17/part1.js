@@ -1,28 +1,64 @@
 const fs = require("fs");
-const jets = parseInput("./example.txt");
+const jets = parseInput("./input.txt");
 
 const VERTICAL_OFFSET = 3;
 const LEFT_OFFSET = 2;
 
 let currentJetIndex = 0;
+let currentFigureIndex = 0;
 let currentHighestPoint = -1; //floor in the beginning
+
+let figures = ["line-hor", "cross", "l-shape", "line-ver", "square"];
+let count = 0;
 
 const map = [];
 for (let i = 0; i < 7; i++) {
   map[i] = [];
 }
 
-// drawMapInversion(map, figure);
+//initialize first figure
+let figure = initializeFigure(figures[currentFigureIndex]);
 
-// while (true) {
-//   let currentJetPattern = jets[currentJetIndex];
+while (true) {
+  let currentJetPattern = jets[currentJetIndex];
 
-//   if (currentJetIndex < jets.length - 1) {
-//     currentJetIndex++;
-//   } else {
-//     currentJetIndex = 0;
-//   }
-// }
+  //gas pushes figure
+  if (currentJetPattern === ">") {
+    moveFigureRight(map, figure);
+  } else if (currentJetPattern === "<") {
+    moveFigureLeft(map, figure);
+  } else {
+    console.log("unexpected condition", currentJetPattern);
+    process.exit();
+  }
+
+  let can_move_down = moveFigureDown(map, figure);
+  if (!can_move_down) {
+    let figureHighestPoint = leaveFigureAtCurrentPosition(map, figure);
+    if (figureHighestPoint > currentHighestPoint) {
+      currentHighestPoint = figureHighestPoint;
+    }
+    count++;
+    if (count == 2022) {
+      break;
+    }
+    //init next figure
+    currentFigureIndex = (currentFigureIndex + 1) % 5;
+    console.log(currentFigureIndex);
+    figure = initializeFigure(figures[currentFigureIndex]);
+  }
+
+  if (currentJetIndex < jets.length - 1) {
+    currentJetIndex++;
+  } else {
+    currentJetIndex = 0;
+  }
+}
+
+drawMap(map, figure);
+console.log(count);
+console.log(currentHighestPoint + 1);
+// drawMap(map, figure);
 
 function leaveFigureAtCurrentPosition(map, figure) {
   let figureMaxY = 0;
