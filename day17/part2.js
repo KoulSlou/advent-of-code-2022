@@ -1,6 +1,6 @@
 const { countReset } = require("console");
 const fs = require("fs");
-const jets = parseInput("./input.txt");
+const jets = parseInput("./example.txt");
 
 const VERTICAL_OFFSET = 3;
 const LEFT_OFFSET = 2;
@@ -13,7 +13,6 @@ let currentHighestPoint = -1; //floor in the beginning
 
 let figures = ["line-hor", "cross", "l-shape", "line-ver", "square"];
 let count = 0;
-let possibleStates = {};
 let stateJetFigureMap = {};
 
 let loopStartCount = 0;
@@ -29,75 +28,10 @@ for (let i = 0; i < 7; i++) {
 }
 
 //initialize first figure
-let figure = initializeFigure(figures[currentFigureIndex]);
+runSimulation(map, 0, 0, RUNS, true);
 
-while (true) {
-  let currentJetPattern = jets[currentJetIndex];
-
-  //gas pushes figure
-  if (currentJetPattern === ">") {
-    moveFigureRight(map, figure);
-  } else if (currentJetPattern === "<") {
-    moveFigureLeft(map, figure);
-  } else {
-    console.log("unexpected condition", currentJetPattern);
-    process.exit();
-  }
-
-  let can_move_down = moveFigureDown(map, figure);
-  if (!can_move_down) {
-    let figureHighestPoint = leaveFigureAtCurrentPosition(map, figure);
-    if (figureHighestPoint > currentHighestPoint) {
-      currentHighestPoint = figureHighestPoint;
-      let state = getSurfaceRepresentation(map);
-      if (possibleStates[state] === undefined) {
-        possibleStates[state] = 1;
-      } else {
-        possibleStates[state]++;
-      }
-
-      //save to state-jet-figure map
-      let key = state + "-J" + currentJetIndex + "-F" + currentFigureIndex;
-      if (stateJetFigureMap[key] == undefined) {
-        stateJetFigureMap[key] = 1;
-      } else {
-        //in this case we saw repeating patern
-        stateJetFigureMap[key]++;
-        if (stateJetFigureMap[key] == 2) {
-          //start analysing loop
-          if (!loopStartCount) {
-            loopStartCount = count;
-            loopStartHeight = currentHighestPoint;
-            loopStartState = key;
-          }
-        } else if (stateJetFigureMap[key] == 3) {
-          //we did a full loop
-          countIncreasePerLoop = count - loopStartCount;
-          heightIncreasePerLoop = currentHighestPoint - loopStartHeight;
-          break;
-        }
-      }
-    }
-    count++;
-    if (count == RUNS) {
-      break;
-    }
-    //init next figure
-    currentFigureIndex = (currentFigureIndex + 1) % 5;
-    figure = initializeFigure(figures[currentFigureIndex]);
-  }
-
-  if (currentJetIndex < jets.length - 1) {
-    currentJetIndex++;
-  } else {
-    currentJetIndex = 0;
-  }
-}
-
-// console.log(possibleStates);
 console.log(stateJetFigureMap);
 console.log("number of possible states", Object.keys(stateJetFigureMap).length);
-
 console.log("loop started at count", loopStartCount);
 console.log("loop started at height", loopStartHeight);
 console.log("count increase per loop", countIncreasePerLoop);
@@ -106,6 +40,7 @@ console.log("loop start state", loopStartState);
 
 let numberOfLoops = Math.floor((RUNS - loopStartCount) / countIncreasePerLoop);
 let potentialHeight = numberOfLoops * heightIncreasePerLoop;
+
 let result = potentialHeight + loopStartHeight;
 let leftCountsToRun =
   RUNS - loopStartCount - countIncreasePerLoop * numberOfLoops;
@@ -118,16 +53,18 @@ if (leftCountsToRun !== 0) {
   let figureIndex = parseInt(surfacesState[8].slice(1));
   //reset height to the max point of the row
   let surfaceHighestPoint = Math.max(...mapState);
+
   currentHighestPoint = surfaceHighestPoint;
+  count = 0;
 
   const mapAfterLoops = [];
   for (let i = 0; i < 7; i++) {
     mapAfterLoops[i] = [];
     mapAfterLoops[i][mapState[i]] = "#";
   }
-  count = 0;
+
   runSimulation(mapAfterLoops, figureIndex + 1, jetIndex + 1, leftCountsToRun);
-  drawMap(mapAfterLoops, figure);
+  drawMap(mapAfterLoops);
   result += currentHighestPoint - surfaceHighestPoint;
 }
 console.log(result);
@@ -165,11 +102,6 @@ function runSimulation(
         currentHighestPoint = figureHighestPoint;
         if (detectLoops) {
           let state = getSurfaceRepresentation(map);
-          if (possibleStates[state] === undefined) {
-            possibleStates[state] = 1;
-          } else {
-            possibleStates[state]++;
-          }
 
           //save to state-jet-figure map
           let key = state + "-J" + jetIndexToStart + "-F" + figureIndexToStart;
@@ -197,7 +129,6 @@ function runSimulation(
       count++;
 
       if (count == countToRun) {
-        console.log("count break", count, countToRun);
         break;
       }
       //init next figure
@@ -400,13 +331,13 @@ function parseInput(file) {
   return file_data;
 }
 
-function drawMap(map, figure) {
+function drawMap(map, figure = null) {
   console.log("\n\n");
   for (let i = 0; i < 7; i++) {
     let drawingColumn = [...map[i]];
     for (let j = 0; j < currentHighestPoint + 20; j++) {
       drawingColumn[j] = map[i][j] || ".";
-      if (drawingColumn[j] !== "#" && figure.includesPoint(i, j)) {
+      if (drawingColumn[j] !== "#" && figure && figure.includesPoint(i, j)) {
         drawingColumn[j] = "@";
       }
     }
