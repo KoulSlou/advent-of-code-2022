@@ -1,12 +1,10 @@
 const fs = require("fs");
 const { exit } = require("process");
-const lines = parseInput("./input.txt");
-
-///4168 is too high
+const lines = parseInput("./example.txt");
+let startTime = performance.now();
 
 //key 'x-y-z' coordinates
 //records will be set only for cubes from the list
-let airCubesHashmap = {};
 const hashmap = {};
 const cubes = [];
 let fullyClosedCubesHashmap = [];
@@ -16,38 +14,140 @@ for (line of lines) {
   let coordinates = line.split(",").map((v) => parseInt(v));
   cubes.push(coordinates);
   hashmap[line] = 1;
+  let [x, y, z] = coordinates;
 }
 
-totalOpenSides = getTotalOpenSides(cubes, hashmap, fullyClosedCubesHashmap);
+let maxX = Math.max(...cubes.map((v) => v[0]));
+let maxY = Math.max(...cubes.map((v) => v[1]));
+let maxZ = Math.max(...cubes.map((v) => v[2]));
+let minX = Math.min(...cubes.map((v) => v[0]));
+let minY = Math.min(...cubes.map((v) => v[1]));
+let minZ = Math.min(...cubes.map((v) => v[2]));
 
-//find air cubes
-for (cube of cubes) {
-  let [x, y, z] = cube;
-  if (fullyClosedCubesHashmap[cube.join()]) {
-    continue;
-  }
+let pocketsOfAir = {};
 
-  let possibleAirCubeCoordinates = getNearCubes(cube);
-  for (let possibleAirCube of possibleAirCubeCoordinates) {
-    if (checkPossibleAirCube(possibleAirCube)) {
-      airCubesHashmap[possibleAirCube.join()] = 1;
+for (let i = minX; i <= maxX; i++) {
+  for (let j = minY; j <= maxY; j++) {
+    for (let k = minZ; k <= maxZ; k++) {
+      //check if it's cube of air (aka is not in the list of our cubes)
+      let key = [i, j, k].join();
+      if (hashmap[key] === undefined) {
+        //pocket of air found
+        pocketsOfAir[key] = 1;
+      }
     }
   }
 }
 
-let airCubes = [];
-let airCubesFullyClosedHashmap = {};
-for (air_cube_coordinates in airCubesHashmap) {
-  airCubes.push(air_cube_coordinates.split(",").map((v) => parseInt(v)));
+let notLockedAirCubesHashmap = {};
+let lockedAirCubesHashmap = {};
+
+//this variables will be resetted during loops
+let currentAirAreaHashmap = {};
+let airArea = [];
+let airPocketNearPoints = [];
+
+for (let pocketOfAirIndex in pocketsOfAir) {
+  //check if we already checked air area connected with this point
+  if (
+    notLockedAirCubesHashmap[pocketOfAirIndex] === 1 ||
+    lockedAirCubesHashmap[pocketOfAirIndex] === 1
+  ) {
+    continue;
+  }
+
+  airArea.push(coordinatesStringToArray(pocketOfAirIndex));
+  currentAirAreaHashmap[pocketOfAirIndex] = 1;
+  let queueToCheck = [coordinatesStringToArray(pocketOfAirIndex)];
+
+  do {
+    //if near points are blocks remove them from the list
+    airPocketNearPoints = getNearCubes(queueToCheck.shift())
+      .filter((coordinates) => !isCube(coordinates))
+      .filter(
+        (coordinates) => currentAirAreaHashmap[coordinates.join()] === undefined
+      );
+
+    queueToCheck = [...queueToCheck, ...airPocketNearPoints];
+
+    //combine them into one air area since they are connected
+    airArea = [...airArea, ...airPocketNearPoints];
+
+    let overMax = false;
+
+    //if near points exceeded any of the maximum, it means this air area is not locked between blocks
+    for (let airCube of airPocketNearPoints) {
+      let [x, y, z] = airCube;
+      if (
+        x > maxX ||
+        x < minX ||
+        y > maxY ||
+        y < minY ||
+        z > maxZ ||
+        z < minZ
+      ) {
+        //we can throw away this whole airArea
+        overMax = true;
+        break;
+      }
+      setCoordinatesInHashmap(airCube, currentAirAreaHashmap);
+    }
+    if (overMax) {
+      //this is not closed air area
+      for (let airCube of airArea) {
+        setCoordinatesInHashmap(airCube, notLockedAirCubesHashmap);
+      }
+      airArea = [];
+      currentAirAreaHashmap = {};
+      queueToCheck = [];
+      break;
+    }
+  } while (queueToCheck.length);
+
+  if (airArea.length) {
+    //at this point airArea should contain only locked air pockets
+    for (let lockedAirCube of airArea) {
+      setCoordinatesInHashmap(lockedAirCube, lockedAirCubesHashmap);
+    }
+  }
+
+  airArea = [];
+  currentAirAreaHashmap = {};
 }
 
-let airCubesOpenSides = getTotalOpenSides(
-  airCubes,
-  airCubesHashmap,
-  airCubesFullyClosedHashmap
+let lockedAirCubes = [];
+for (let index in lockedAirCubesHashmap) {
+  lockedAirCubes.push(coordinatesStringToArray(index));
+}
+
+let airLockedSides = getTotalOpenSides(
+  lockedAirCubes,
+  lockedAirCubesHashmap,
+  {}
 );
 
-console.log(totalOpenSides - airCubesOpenSides);
+totalOpenSides = getTotalOpenSides(cubes, hashmap, fullyClosedCubesHashmap);
+console.log(totalOpenSides - airLockedSides);
+var endTime = performance.now();
+console.log((endTime - startTime) / 1000);
+
+function setCoordinatesInHashmap(coordinates, hashmap) {
+  let key = coordinates.join();
+  hashmap[key] = 1;
+}
+
+function coordinatesStringToArray(coordinates) {
+  return coordinates.split(",").map((v) => parseInt(v));
+}
+
+function isCube(coordinates) {
+  let key = coordinates.join();
+  return hashmap[key] == 1;
+}
+
+function airCubeIsInsideBlocks(airCube) {
+  //check that along each axis we have a block
+}
 
 function getTotalOpenSides(cubes, hashmap, fullyClosedCubesHashmap) {
   let openSides = 0;
