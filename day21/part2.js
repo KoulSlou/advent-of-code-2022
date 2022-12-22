@@ -77,10 +77,18 @@ do {
     ? currentNode.getLeftChild()
     : currentNode.getRightChild();
 
-  currentValue = mathCalculations[oppositeOperator](
-    currentValue,
-    isNaN(leftTreeSum) ? rightTreeSum : leftTreeSum
-  );
+  if (
+    !positiionalOperators.includes(currentOperator) ||
+    (positiionalOperators.includes(currentOperator) && isNaN(leftTreeSum))
+  ) {
+    currentValue = mathCalculations[oppositeOperator](
+      currentValue,
+      isNaN(leftTreeSum) ? rightTreeSum : leftTreeSum
+    );
+  } else {
+    //we have a positional operator and unknown value is on the right
+    currentValue = mathCalculations[currentOperator](leftTreeSum, currentValue);
+  }
 } while (true);
 
 console.log(currentValue);
