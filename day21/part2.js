@@ -4,14 +4,6 @@ const lines = parseInput("./input.txt");
 
 let monkeys = {};
 let MONKEY_TO_REPLACE = "humn";
-
-const mathCalculations = {
-  "+": (x, y) => x + y,
-  "-": (x, y) => x - y,
-  "*": (x, y) => x * y,
-  "/": (x, y) => x / y,
-};
-
 const positiionalOperators = ["/", "-"];
 
 for (line of lines) {
@@ -81,13 +73,16 @@ do {
     !positiionalOperators.includes(currentOperator) ||
     (positiionalOperators.includes(currentOperator) && isNaN(leftTreeSum))
   ) {
-    currentValue = mathCalculations[oppositeOperator](
+    currentValue = currentNode.mathCalculations[oppositeOperator](
       currentValue,
       isNaN(leftTreeSum) ? rightTreeSum : leftTreeSum
     );
   } else {
     //we have a positional operator and unknown value is on the right
-    currentValue = mathCalculations[currentOperator](leftTreeSum, currentValue);
+    currentValue = currentNode.mathCalculations[currentOperator](
+      leftTreeSum,
+      currentValue
+    );
   }
 } while (true);
 
